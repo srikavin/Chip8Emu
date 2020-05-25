@@ -1,0 +1,22 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: ./configure
+    - name: Install locv
+      run: sudo apt-get install lcov
+    - name: Install cmake
+      uses: lukka/get-cmake@v3.17.2
+    - name: cmake --build ./build --target Chip8Emu_coverage
