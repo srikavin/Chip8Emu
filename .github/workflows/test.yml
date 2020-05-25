@@ -12,11 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: configure
-      run: ./configure
-    - name: Install locv
-      run: sudo apt-get install lcov
-    - name: Install cmake
-      uses: lukka/get-cmake@v3.17.2
-    - name: cmake --build ./build --target Chip8Emu_coverage
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Install lcov
+        run: sudo apt-get install lcov
+      - name: Install cmake
+        uses: lukka/get-cmake@v3.17.2
+      - run: mkdir ./build
+      - run: cmake .
+      - run: cmake --build ./build --target Chip8Emu_coverage
