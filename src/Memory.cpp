@@ -6,6 +6,6 @@ Memory::Memory() {
     }
 };
 
-uint8_t &Memory::operator[](uint8_t addr) {
+uint8_t &Memory::operator[](uint16_t addr) {
     return this->memory[addr];
 }

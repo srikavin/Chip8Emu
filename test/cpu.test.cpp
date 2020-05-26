@@ -3,6 +3,7 @@
 
 TEST(CPUTest, Construction) {
     auto memory = Memory();
+
     auto graphics = Graphics(memory);
     Cpu cpu(memory, graphics, 0x200);
 
