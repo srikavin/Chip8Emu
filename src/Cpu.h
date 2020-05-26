@@ -16,6 +16,15 @@ public:
     Cpu(Memory &memory, Graphics& graphics, int starting_addr);
     void step();
 
+    /**
+     * The program counter register
+     */
+    uint16_t pc;
+protected:
+    Memory& memory;
+    Graphics& graphics;
+    std::stack<uint16_t> stack;
+
     void opcode_0xxx(uint16_t opcode);
     void opcode_1xxx(uint16_t opcode);
     void opcode_2xxx(uint16_t opcode);
@@ -32,17 +41,9 @@ public:
     void opcode_Dxxx(uint16_t opcode);
     void opcode_Exxx(uint16_t opcode);
     void opcode_Fxxx(uint16_t opcode);
-protected:
-    Memory& memory;
-    Graphics& graphics;
-    std::stack<uint16_t> stack;
 
     uint8_t data_registers[16]{};
     uint16_t instruction_register;
-    /**
-     * The program counter register
-     */
-    uint16_t pc;
 
     /**
      * Indicates if pc should be updated at the end of the cycle.

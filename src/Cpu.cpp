@@ -1,8 +1,6 @@
 #include "Cpu.h"
 #include "Graphics.h"
 #include <iostream>
-#include <sys/socket.h>
-#include <unistd.h>
 
 Cpu::Cpu(Memory &memory, Graphics &graphics, int starting_addr) : memory(memory), graphics(graphics) {
     this->pc = starting_addr;
