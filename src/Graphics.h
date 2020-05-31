@@ -35,7 +35,7 @@ public:
     void set(uint16_t x, uint16_t y, uint8_t val);
     uint8_t get(uint16_t x, uint16_t y);
 
-    uint8_t buffer[64 * 32];
+    uint32_t buffer[64 * 32];
 
 private:
     bool dirty;

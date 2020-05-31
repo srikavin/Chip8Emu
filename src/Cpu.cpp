@@ -12,13 +12,17 @@ Cpu::Cpu(Memory &memory, Graphics &graphics, int starting_addr) : memory(memory)
     this->rng_dist = std::uniform_int_distribution<std::mt19937::result_type>(0, 0xFF);
 
     this->keys_pressed = std::set<uint8_t>();
+    this->skip_update_pc = false;
 }
 
 void Cpu::step() {
     // instructions are stores in big-endian format
-    uint16_t inst = ((unsigned) this->memory[this->pc] << (unsigned) 4) | this->memory[this->pc + 1];
+    uint16_t inst = ((uint16_t) (this->memory[this->pc] << 8u)) | this->memory[this->pc + 1];
+    std::cerr << "Running opcode: " << std::hex << inst << std::endl;
 
-    switch (inst & (uint16_t) 0xF000) {
+    printf("%x\n", (inst & 0xF000u) >> 12u);
+
+    switch ((inst & 0xF000u) >> 12u) {
         case 0:
             this->opcode_0xxx(inst);
             break;
@@ -61,10 +65,16 @@ void Cpu::step() {
         case 0xD:
             this->opcode_Dxxx(inst);
             break;
+        case 0xE:
+            this->opcode_Exxx(inst);
+            break;
+        case 0xF:
+            this->opcode_Fxxx(inst);
+            break;
     }
 
-    if (this->update_pc) {
-        this->update_pc = false;
+    if (this->skip_update_pc) {
+        this->skip_update_pc = false;
         return;
     }
 
@@ -88,14 +98,14 @@ inline void Cpu::opcode_0xxx(uint16_t opcode) {
 inline void Cpu::opcode_1xxx(uint16_t opcode) {
     // 1NNN - Jump to address NNN
     this->pc = opcode & (uint16_t) 0x0FFF;
-    this->update_pc = false;
+    this->skip_update_pc = true;
 }
 
 inline void Cpu::opcode_2xxx(uint16_t opcode) {
     // 2NNN - Execute subroutine at NNN
     this->stack.push(this->pc);
     this->pc = opcode & (uint16_t) 0x0FFF;
-    this->update_pc = false;
+    this->skip_update_pc = true;
 }
 
 inline void Cpu::opcode_3xxx(uint16_t opcode) {
@@ -225,6 +235,7 @@ inline void Cpu::opcode_Axxx(uint16_t opcode) {
 inline void Cpu::opcode_Bxxx(uint16_t opcode) {
     // BNNN - Jump to NNN + V0
     this->pc = (opcode & (unsigned) 0x0FFF) + data_registers[0];
+    this->skip_update_pc = true;
 }
 
 inline void Cpu::opcode_Cxxx(uint16_t opcode) {
@@ -298,11 +309,3 @@ void Cpu::opcode_Fxxx(uint16_t opcode) {
             break;
     }
 }
-
-
-
-
-
-
-
-

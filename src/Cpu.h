@@ -20,6 +20,9 @@ public:
      * The program counter register
      */
     uint16_t pc;
+
+    uint8_t data_registers[16]{};
+    uint16_t instruction_register;
 protected:
     Memory& memory;
     Graphics& graphics;
@@ -42,14 +45,12 @@ protected:
     void opcode_Exxx(uint16_t opcode);
     void opcode_Fxxx(uint16_t opcode);
 
-    uint8_t data_registers[16]{};
-    uint16_t instruction_register;
 
     /**
      * Indicates if pc should be updated at the end of the cycle.
      * Should be set to false if a jump has occurred.
      */
-    bool update_pc;
+    bool skip_update_pc;
 
     std::mt19937 rng;
     std::uniform_int_distribution<std::mt19937::result_type> rng_dist; // distribution in range [1, 6]
