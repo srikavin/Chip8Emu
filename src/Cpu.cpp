@@ -2,6 +2,22 @@
 #include "Graphics.h"
 #include <iostream>
 
+static inline uint8_t getNN(uint16_t opcode) {
+    return opcode & 0xFFu;
+}
+
+static inline uint16_t getNNN(uint16_t opcode) {
+    return opcode & 0xFFFu;
+}
+
+static inline uint8_t getX(uint16_t opcode) {
+    return (opcode & 0x0F00u) >> 8u;
+}
+
+static inline uint8_t getY(uint16_t opcode) {
+    return (opcode & 0x00F0u) >> 4u;
+}
+
 Cpu::Cpu(Memory &memory, Graphics &graphics, int starting_addr) : memory(memory), graphics(graphics) {
     this->pc = starting_addr;
     this->instruction_register = 0;
@@ -19,8 +35,6 @@ void Cpu::step() {
     // instructions are stores in big-endian format
     uint16_t inst = ((uint16_t) (this->memory[this->pc] << 8u)) | this->memory[this->pc + 1];
     std::cerr << "Running opcode: " << std::hex << inst << std::endl;
-
-    printf("%x\n", (inst & 0xF000u) >> 12u);
 
     switch ((inst & 0xF000u) >> 12u) {
         case 0:
@@ -97,21 +111,22 @@ inline void Cpu::opcode_0xxx(uint16_t opcode) {
 
 inline void Cpu::opcode_1xxx(uint16_t opcode) {
     // 1NNN - Jump to address NNN
-    this->pc = opcode & (uint16_t) 0x0FFF;
+    this->pc = getNNN(opcode);
     this->skip_update_pc = true;
 }
 
 inline void Cpu::opcode_2xxx(uint16_t opcode) {
     // 2NNN - Execute subroutine at NNN
     this->stack.push(this->pc);
-    this->pc = opcode & (uint16_t) 0x0FFF;
+    this->pc = getNNN(opcode);
     this->skip_update_pc = true;
 }
 
 inline void Cpu::opcode_3xxx(uint16_t opcode) {
     // 3XNN - Skip the following instruction if register VX equals NN
-    uint8_t reg = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
-    uint16_t val = opcode & (uint16_t) 0x00FF;
+    uint8_t reg = getX(opcode);
+    uint16_t val = getNN(opcode);
+
     if (this->data_registers[reg] == val) {
         this->pc += 2;
     }
@@ -119,8 +134,9 @@ inline void Cpu::opcode_3xxx(uint16_t opcode) {
 
 inline void Cpu::opcode_4xxx(uint16_t opcode) {
     // 4XNN - Skip the following instruction if register VX does not equals NN
-    uint8_t reg = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
-    uint8_t val = opcode & (uint16_t) 0x00FF;
+    uint8_t reg = getX(opcode);
+    uint8_t val = getNN(opcode);
+
     if (this->data_registers[reg] != val) {
         this->pc += 2;
     }
@@ -128,8 +144,8 @@ inline void Cpu::opcode_4xxx(uint16_t opcode) {
 
 inline void Cpu::opcode_5xxx(uint16_t opcode) {
     // 5XY0 - Skip the following instruction if VX equals XY
-    uint8_t regx = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
-    uint8_t regy = (opcode & (unsigned) 0x00F0) >> (unsigned) 4;
+    uint8_t regx = getX(opcode);
+    uint8_t regy = getY(opcode);
 
     if (data_registers[regx] == data_registers[regy]) {
         this->pc += 2;
@@ -139,23 +155,23 @@ inline void Cpu::opcode_5xxx(uint16_t opcode) {
 inline void Cpu::opcode_6xxx(uint16_t opcode) {
     // 6XNN Store number NN in register VX
 
-    uint8_t data = opcode & (uint16_t) 0x00FF;
-    uint8_t reg = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
+    uint8_t data = getNN(opcode);
+    uint8_t reg = getX(opcode);
 
     data_registers[reg] = data;
 }
 
 inline void Cpu::opcode_7xxx(uint16_t opcode) {
     // 7XNN - Add NN to VX
-    uint8_t reg = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
-    uint8_t data = opcode & (uint16_t) 0x00FF;
+    uint8_t reg = getX(opcode);
+    uint8_t data = getNN(opcode);
 
     data_registers[reg] += data;
 }
 
 inline void Cpu::opcode_8xxx(uint16_t opcode) {
-    uint8_t regx = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
-    uint8_t regy = (opcode & (unsigned) 0x00F0) >> (unsigned) 4;
+    uint8_t regx = getX(opcode);
+    uint8_t regy = getY(opcode);
 
     switch (opcode & (unsigned) 0x000F) {
         case 0:
@@ -219,8 +235,8 @@ inline void Cpu::opcode_8xxx(uint16_t opcode) {
 
 inline void Cpu::opcode_9xxx(uint16_t opcode) {
     // 9XY0 - Skip next instruction if VX is not equal to VY
-    uint8_t regx = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
-    uint8_t regy = (opcode & (unsigned) 0x00F0) >> (unsigned) 4;
+    uint8_t regx = getX(opcode);
+    uint8_t regy = getY(opcode);
 
     if (data_registers[regx] != data_registers[regy]) {
         this->pc += 2;
@@ -234,14 +250,14 @@ inline void Cpu::opcode_Axxx(uint16_t opcode) {
 
 inline void Cpu::opcode_Bxxx(uint16_t opcode) {
     // BNNN - Jump to NNN + V0
-    this->pc = (opcode & (unsigned) 0x0FFF) + data_registers[0];
+    this->pc = getNNN(opcode) + data_registers[0];
     this->skip_update_pc = true;
 }
 
 inline void Cpu::opcode_Cxxx(uint16_t opcode) {
     // CXNN - Set VX to a random number with mask NN
-    uint8_t mask = opcode & (unsigned) 0x00FF;
-    uint8_t regx = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
+    uint8_t mask = getNN(opcode);
+    uint8_t regx = getX(opcode);
 
     uint16_t number = rng_dist(rng);
 
@@ -253,8 +269,8 @@ void Cpu::opcode_Dxxx(uint16_t opcode) {
     // Set VF to 1 if any set pixels are unset
     // Each byte has 8 bits indicating the value of the pixel
 
-    uint8_t regx = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
-    uint8_t regy = (opcode & (unsigned) 0x00F0) >> (unsigned) 4;
+    uint8_t regx = getX(opcode);
+    uint8_t regy = getY(opcode);
 
     uint8_t x0 = data_registers[regx];
     uint8_t y0 = data_registers[regy];
@@ -278,7 +294,7 @@ void Cpu::opcode_Dxxx(uint16_t opcode) {
 }
 
 inline void Cpu::opcode_Exxx(uint16_t opcode) {
-    uint8_t regx = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
+    uint8_t regx = getX(opcode);
 
     switch (opcode & (unsigned) 0x00FF) {
         case 0x9E:
@@ -297,7 +313,7 @@ inline void Cpu::opcode_Exxx(uint16_t opcode) {
 }
 
 void Cpu::opcode_Fxxx(uint16_t opcode) {
-    uint8_t regx = (opcode & (unsigned) 0x0F00) >> (unsigned) 8;
+    uint8_t regx = getX(opcode);
 
     switch (opcode & (unsigned) 0x00FF) {
         case 0x07:
