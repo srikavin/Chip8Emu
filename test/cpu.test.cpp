@@ -156,3 +156,105 @@ TEST(CPUTest, CONDITIONALS) {
     cpu.step();
     EXPECT_EQ(cpu.pc, 0x218);
 }
+
+TEST(CpuTest, ARITHMETIC) {
+    auto memory = Memory();
+    auto graphics = Graphics(memory);
+    Cpu cpu(memory, graphics, 0x200);
+
+    EXPECT_EQ(cpu.pc, 0x200);
+
+    // 0x7[1][05] - Add the value 0x5 to V1
+    memory[0x200] = 0x71;
+    memory[0x201] = 0x05;
+    cpu.data_registers[1] = 0x0;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[1], 0x05);
+
+    // 0x8[1][2]0 - Set V1 = V2
+    memory[0x202] = 0x81;
+    memory[0x203] = 0x20;
+    cpu.data_registers[1] = 5;
+    cpu.data_registers[2] = 3;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[1], 0x03);
+
+    // 0x8[5][1]1 - Set V5 |= V1
+    memory[0x204] = 0x85;
+    memory[0x205] = 0x11;
+    cpu.data_registers[5] = 9;
+    cpu.data_registers[1] = 1;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5], 9u | 1u);
+
+    // 0x8[5][1]2 - Set V5 &= V1
+    memory[0x206] = 0x85;
+    memory[0x207] = 0x12;
+    cpu.data_registers[5] = 9;
+    cpu.data_registers[1] = 7;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5], 9u & 7u);
+
+    // 0x8[5][1]3 - Set V5 ^= V1
+    memory[0x208] = 0x85;
+    memory[0x209] = 0x13;
+    cpu.data_registers[5] = 9;
+    cpu.data_registers[1] = 7;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5], 9u ^ 7u);
+
+    // 0x8[5][1]4 - Set V1 += V5; Set VF is carry occurs
+    memory[0x20A] = 0x85;
+    memory[0x20B] = 0x14;
+    cpu.data_registers[5] = 250;
+    cpu.data_registers[1] = 100;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5], (250 + 100) % (0xFF + 1));
+    EXPECT_EQ(cpu.data_registers[0xF], 1);
+
+    // 0x8[5][1]5 - Set VX -= VY; Set VF is carry occurs
+    memory[0x20C] = 0x85;
+    memory[0x20D] = 0x15;
+    cpu.data_registers[5] = 100;
+    cpu.data_registers[1] = 250;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5], (uint8_t) ((uint8_t) 100 - (uint8_t) 250));
+    EXPECT_EQ(cpu.data_registers[0xF], 0);
+
+    // 0x8[5][1]6 - Store V1 << 1 in V5. Set VF to lowest bit of V1
+    memory[0x20E] = 0x85;
+    memory[0x20F] = 0x16;
+    cpu.data_registers[5] = 4;
+    cpu.data_registers[1] = 1;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5], 1u << 1u);
+    EXPECT_EQ(cpu.data_registers[0xF], 1);
+
+    // 0x8[5][1]7 - VX = VY - VX; Set VF if borrow does not occur
+    memory[0x210] = 0x85;
+    memory[0x211] = 0x17;
+    cpu.data_registers[5] = 170;
+    cpu.data_registers[1] = 200;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5], 200u - 170u);
+    EXPECT_EQ(cpu.data_registers[0xF], 1);
+
+    // 0x8[5][1]7 - VX = VY - VX; Set VF if borrow does not occur
+    memory[0x212] = 0x85;
+    memory[0x213] = 0x17;
+    cpu.data_registers[5] = 200;
+    cpu.data_registers[1] = 170;
+
+    cpu.step();
+    EXPECT_EQ(cpu.data_registers[5],  (uint8_t) ((uint8_t) 170 - (uint8_t) 200));
+    EXPECT_EQ(cpu.data_registers[0xF], 0);
+}
