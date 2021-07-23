@@ -16,9 +16,9 @@ jobs:
         with:
           submodules: recursive
       - name: Install lcov and libsdl2
-        run: sudo apt-get install lcov libsdl2-dev
+        run: sudo apt-get update && sudo apt-get install lcov libsdl2-dev
       - name: Install cmake
-        uses: lukka/get-cmake@v3.17.2
+        uses: lukka/get-cmake@latest
       - run: mkdir ./build
       - run: cmake .
       - run: make Chip8Emu_coverage

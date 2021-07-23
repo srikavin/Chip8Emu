@@ -7,7 +7,8 @@
 TEST(CPUTest, Construction) {
     auto memory = Memory();
     auto graphics = Graphics(memory);
-    Cpu cpu(memory, graphics, 0x200);
+    auto input = Input();
+    Cpu cpu(memory, graphics, input, 0x200);
 
     EXPECT_EQ(cpu.pc, 0x200);
     cpu.step();
@@ -17,7 +18,8 @@ TEST(CPUTest, Construction) {
 TEST(CPUTest, OPCODE_00E0) {
     auto memory = Memory();
     auto graphics = Graphics(memory);
-    Cpu cpu(memory, graphics, 0x200);
+    auto input = Input();
+    Cpu cpu(memory, graphics, input, 0x200);
 
     // 0x00E0
     memory[0x200] = 0x00;
@@ -35,7 +37,8 @@ TEST(CPUTest, OPCODE_00E0) {
 TEST(CPUTest, ROUTINES) {
     auto memory = Memory();
     auto graphics = Graphics(memory);
-    Cpu cpu(memory, graphics, 0x200);
+    auto input = Input();
+    Cpu cpu(memory, graphics, input, 0x200);
 
     // 0x2205 - Execute subroutine at 0x208
     memory[0x200] = 0x22;
@@ -58,7 +61,8 @@ TEST(CPUTest, ROUTINES) {
 TEST(CPUTest, JUMPS) {
     auto memory = Memory();
     auto graphics = Graphics(memory);
-    Cpu cpu(memory, graphics, 0x200);
+    auto input = Input();
+    Cpu cpu(memory, graphics, input, 0x200);
 
     // 0x1[210] - Jump to address 0x210
     memory[0x200] = 0x12;
@@ -84,7 +88,8 @@ TEST(CPUTest, JUMPS) {
 TEST(CPUTest, CONDITIONALS) {
     auto memory = Memory();
     auto graphics = Graphics(memory);
-    Cpu cpu(memory, graphics, 0x200);
+    auto input = Input();
+    Cpu cpu(memory, graphics, input, 0x200);
 
     EXPECT_EQ(cpu.pc, 0x200);
 
@@ -160,7 +165,8 @@ TEST(CPUTest, CONDITIONALS) {
 TEST(CpuTest, ARITHMETIC) {
     auto memory = Memory();
     auto graphics = Graphics(memory);
-    Cpu cpu(memory, graphics, 0x200);
+    auto input = Input();
+    Cpu cpu(memory, graphics, input, 0x200);
 
     EXPECT_EQ(cpu.pc, 0x200);
 

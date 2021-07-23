@@ -3,11 +3,11 @@
 #include <iostream>
 
 static inline uint8_t getNN(uint16_t opcode) {
-    return opcode & 0xFFu;
+    return opcode & 0x00FFu;
 }
 
 static inline uint16_t getNNN(uint16_t opcode) {
-    return opcode & 0xFFFu;
+    return opcode & 0x0FFFu;
 }
 
 static inline uint8_t getX(uint16_t opcode) {
@@ -18,7 +18,7 @@ static inline uint8_t getY(uint16_t opcode) {
     return (opcode & 0x00F0u) >> 4u;
 }
 
-Cpu::Cpu(Memory &memory, Graphics &graphics, int starting_addr) : memory(memory), graphics(graphics) {
+Cpu::Cpu(Memory &memory, Graphics &graphics, Input &input, int starting_addr) : memory(memory), graphics(graphics), input(input) {
     this->pc = starting_addr;
     this->instruction_register = 0;
     this->stack = std::stack<uint16_t>();
@@ -27,14 +27,27 @@ Cpu::Cpu(Memory &memory, Graphics &graphics, int starting_addr) : memory(memory)
     this->rng = std::mt19937(dev());
     this->rng_dist = std::uniform_int_distribution<std::mt19937::result_type>(0, 0xFF);
 
-    this->keys_pressed = std::set<uint8_t>();
     this->skip_update_pc = false;
 }
 
 void Cpu::step() {
+    if (!(this->pc < 4096 && this->pc >= 512)) {
+        std::cerr << "PC register is out of bounds: " << std::hex << this->pc << std::endl;
+        exit(2);
+    }
+
+    if (waiting_for_key) {
+        if (input.triggered()) {
+            data_registers[waiting_for_key_reg] = input.triggeredKey();
+            waiting_for_key = false;
+        }
+        return;
+    }
+
     // instructions are stores in big-endian format
     uint16_t inst = ((uint16_t) (this->memory[this->pc] << 8u)) | this->memory[this->pc + 1];
-    std::cerr << "Running opcode: " << std::hex << inst << std::endl;
+    std::cerr << "Running opcode: " << std::hex << inst << " " << std::hex << this->pc << " " << std::hex
+              << ((inst & 0xF000u) >> 12u) << std::endl;
 
     switch ((inst & 0xF000u) >> 12u) {
         case 0:
@@ -85,6 +98,10 @@ void Cpu::step() {
         case 0xF:
             this->opcode_Fxxx(inst);
             break;
+        default:
+            std::cout << std::hex << this->pc << std::endl;
+            this->pc += 2;
+            break;
     }
 
     if (this->skip_update_pc) {
@@ -99,7 +116,6 @@ inline void Cpu::opcode_0xxx(uint16_t opcode) {
     if (opcode == 0x00E0) {
         // 00E0 - Clear the screen
         this->graphics.clear();
-        this->graphics.setDirty();
     } else if (opcode == 0x00EE) {
         // 00EE - Return from subroutine
         this->pc = this->stack.top();
@@ -245,7 +261,7 @@ inline void Cpu::opcode_9xxx(uint16_t opcode) {
 
 inline void Cpu::opcode_Axxx(uint16_t opcode) {
     // ANNN - Store memory address NNN in register I
-    this->instruction_register = opcode & (unsigned) 0x0FFF;
+    this->instruction_register = opcode & 0x0FFFu;
 }
 
 inline void Cpu::opcode_Bxxx(uint16_t opcode) {
@@ -275,20 +291,21 @@ void Cpu::opcode_Dxxx(uint16_t opcode) {
     uint8_t x0 = data_registers[regx];
     uint8_t y0 = data_registers[regy];
 
-    uint8_t n = (opcode & (unsigned) 0x000F);
+    uint8_t n = (opcode & 0x000Fu);
 
+    data_registers[0xf] = 0;
     for (int y = 0; y < n; ++y) {
-        for (unsigned int x = 0; x < 8; x++) {
-            uint16_t cur = instruction_register + y;
-            uint8_t val = (cur >> x);
+        uint8_t cur = memory[instruction_register + y];
+        for (int x = 0; x < 8; ++x) {
+            uint8_t val = ((cur) & (0x80 >> x)) ? 1 : 0;
 
             uint8_t oldVal = graphics.get(x0 + x, y0 + y);
 
-            if (oldVal != 0) {
+            if (oldVal == 0) {
                 data_registers[0xf] = 1;
             }
 
-            graphics.set(x0 + x, y0 + y, val ^ oldVal);
+            graphics.set(x0 + x, y0 + y, val);
         }
     }
 }
@@ -299,13 +316,13 @@ inline void Cpu::opcode_Exxx(uint16_t opcode) {
     switch (opcode & (unsigned) 0x00FF) {
         case 0x9E:
             // EX9E - Skip the next instruction if the key in VX is pressed
-            if (keys_pressed.find(data_registers[regx]) != keys_pressed.end()) {
+            if (input.keys[data_registers[regx]]) {
                 this->pc += 2;
             }
             break;
         case 0xA1:
             // EXA1 - Skip the next instruction if the key in VX is not pressed
-            if (keys_pressed.find(data_registers[regx]) == keys_pressed.end()) {
+            if (!input.keys[data_registers[regx]]) {
                 this->pc += 2;
             }
             break;
@@ -322,6 +339,43 @@ void Cpu::opcode_Fxxx(uint16_t opcode) {
             break;
         case 0x0A:
             // FX0A - Wait for a keypress and store it in VX
+            input.clearTriggered();
+            waiting_for_key = true;
+            waiting_for_key_reg = regx;
+            break;
+        case 0x15:
+            // FX15 - Set delay timer to VX
+            // TODO:
+            break;
+        case 0x18:
+            // FX18 - Set sound timer to VX
+            // TODO:
+            break;
+        case 0x1E:
+            // FX15 - Add VX to I.
+            instruction_register += data_registers[regx];
+            break;
+        case 0x29:
+            // FX29 - Sets I to location of character sprite in VX
+            instruction_register = regx * 0x5;
+            break;
+        case 0x33:
+            // FX33 - Stores BCD representation of VX at I
+            memory[instruction_register] = data_registers[regx] / 100;
+            memory[instruction_register + 1] = (data_registers[regx] / 10) % 10;
+            memory[instruction_register + 2] = data_registers[regx] % 10;
+            break;
+        case 0x55:
+            // FX55 - Stores V0 to Vx in memory starting at I
+            for (uint8_t i = 0; i < regx + 1; ++i) {
+                memory[instruction_register + i] = data_registers[i];
+            }
+            break;
+        case 0x65:
+            // FX65 - Fills V0 to VX from memory starting at I
+            for (uint8_t i = 0; i < regx + 1; ++i) {
+                data_registers[i] = memory[instruction_register + i];
+            }
             break;
     }
 }

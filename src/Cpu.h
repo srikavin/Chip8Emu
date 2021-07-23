@@ -4,6 +4,7 @@
 #include <stack>
 #include "Memory.h"
 #include "Graphics.h"
+#include "Input.h"
 #include <random>
 #include <set>
 
@@ -13,7 +14,7 @@ enum State {
 
 class Cpu {
 public:
-    Cpu(Memory &memory, Graphics& graphics, int starting_addr);
+    Cpu(Memory &memory, Graphics &graphics, Input &input, int starting_addr);
     void step();
 
     /**
@@ -23,9 +24,10 @@ public:
 
     uint8_t data_registers[16]{};
     uint16_t instruction_register;
-protected:
+private:
     Memory& memory;
     Graphics& graphics;
+    Input& input;
     std::stack<uint16_t> stack;
 
     void opcode_0xxx(uint16_t opcode);
@@ -55,7 +57,8 @@ protected:
     std::mt19937 rng;
     std::uniform_int_distribution<std::mt19937::result_type> rng_dist; // distribution in range [1, 6]
 
-    std::set<uint8_t> keys_pressed;
+    bool waiting_for_key;
+    uint8_t waiting_for_key_reg;
 
     uint8_t delay_timer;
     uint8_t sound_timer;

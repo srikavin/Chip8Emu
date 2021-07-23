@@ -5,11 +5,8 @@
 
 class Graphics {
 public:
-    static const uint8_t font_data[16][5];
-
     Graphics(Memory& memory);
 
-    uint16_t font_data_addr[16];
     Memory& memory;
 
     /**
