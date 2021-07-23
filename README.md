@@ -1,4 +1,4 @@
-# Chip-8 Emulator
+# Chip-8 Emulator [![codecov](https://codecov.io/gh/srikavin/Chip8Emu/branch/master/graph/badge.svg?token=65Yi3MhoVN)](https://codecov.io/gh/srikavin/Chip8Emu)
 
 A Chip-8 emulator in C++. 
 
